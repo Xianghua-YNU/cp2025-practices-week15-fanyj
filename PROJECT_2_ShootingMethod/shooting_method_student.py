@@ -36,7 +36,7 @@ def ode_system_shooting(t, y):
     Returns:
         list: Derivatives [y1', y2']
     """
-    return [y[1], -np.pi*(y[0]+1)/4]
+    return [y[1], -np.pi * (y[0] + 1) / 4]
 
 
 def boundary_conditions_scipy(ya, yb):
@@ -69,7 +69,7 @@ def ode_system_scipy(x, y):
     Returns:
         array: Derivatives as column vector
     """
-    return np.vstack([y[1], -np.pi*(y[0]+1)/4])
+    return np.vstack((-np.pi * (y[0] + 1) / 4, y[1]))
 
 
 def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_iterations=10, tolerance=1e-6):
@@ -93,41 +93,58 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
         tuple: (x_array, y_array) solution arrays
     """
     # Validate input parameters
+    if len(x_span) != 2 or x_span[0] >= x_span[1]:
+        raise ValueError("x_span must be a tuple (x_start, x_end) with x_start < x_end")
+    if len(boundary_conditions) != 2:
+        raise ValueError("boundary_conditions must be a tuple (u_left, u_right)")
+    
     x_start, x_end = x_span
     u_left, u_right = boundary_conditions
     
-    # Setup domain
+    # Initial guesses for the slope at x=0
+    m_guesses = [0.0, 1.0]  # Initial guesses for the slope
+    
+    # Solve the initial value problem for each guess
+    def solve_ivp_with_guess(m):
+        # Initial conditions: u(0) = u_left, u'(0) = m
+        y0 = [u_left, m]
+        sol = solve_ivp(ode_system_shooting, x_span, y0, t_eval=np.linspace(x_start, x_end, n_points))
+        return sol.y[0]  # Return the solution for u(x)
+    
+    # Get solutions for each guess
+    u_solutions = [solve_ivp_with_guess(m) for m in m_guesses]
+    
+    # Calculate the residuals (difference between u(1) and u_right)
+    residuals = [u_solutions[i][-1] - u_right for i in range(len(m_guesses))]
+    
+    # Secant method to find the correct slope
+    for _ in range(max_iterations):
+        # Check if we've converged
+        if abs(residuals[1] - residuals[0]) < tolerance:
+            break
+        
+        # Calculate the new slope guess using secant method
+        m_new = m_guesses[1] - residuals[1] * (m_guesses[1] - m_guesses[0]) / (residuals[1] - residuals[0])
+        
+        # Update the guesses
+        m_guesses[0] = m_guesses[1]
+        m_guesses[1] = m_new
+        
+        # Solve the IVP with the new slope
+        u_solutions[0] = u_solutions[1]
+        u_solutions[1] = solve_ivp_with_guess(m_new)
+        
+        # Update the residuals
+        residuals[0] = residuals[1]
+        residuals[1] = u_solutions[1][-1] - u_right
+    
+    # Get the final solution
+    final_solution = u_solutions[1]
+    
+    # Create the x array
     x_array = np.linspace(x_start, x_end, n_points)
     
-    # Initial guesses for the slope
-    m0 = 0.0  # Initial slope guess 1
-    m1 = 1.0  # Initial slope guess 2
-    
-    # Solve the IVP with the first slope guess
-    sol0 = solve_ivp(ode_system_shooting, x_span, [u_left, m0], 
-                    t_eval=x_array, method='RK45')
-    y0 = sol0.y[0][-1]  # Value at x=1
-    
-    # Iterate using the secant method to find the correct slope
-    for i in range(max_iterations):
-        # Solve the IVP with the second slope guess
-        sol1 = solve_ivp(ode_system_shooting, x_span, [u_left, m1], 
-                        t_eval=x_array, method='RK45')
-        y1 = sol1.y[0][-1]  # Value at x=1
-        
-        # Check convergence
-        if abs(y1 - u_right) < tolerance:
-            return x_array, sol1.y
-        
-        # Secant method update for the slope
-        m2 = m1 - (y1 - u_right) * (m1 - m0) / (y1 - y0)
-        
-        # Update guesses
-        m0, m1 = m1, m2
-        y0, y1 = y1, None
-    
-    # If maximum iterations reached, return the best solution found
-    return x_array, sol1.y
+    return x_array, final_solution
 
 
 def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
@@ -142,24 +159,18 @@ def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
     Returns:
         tuple: (x_array, y_array) solution arrays
     """
-    x_start, x_end = x_span
-    u_left, u_right = boundary_conditions
+    # Setup initial mesh and guess
+    x = np.linspace(x_span[0], x_span[1], n_points)
+    y_guess = np.zeros((2, n_points))  # Initial guess: u(x) = 0, u'(x) = 0
     
-    # Setup initial mesh
-    x = np.linspace(x_start, x_end, n_points)
+    # Define the boundary value problem
+    bvp_problem = solve_bvp(ode_system_scipy, boundary_conditions_scipy, x, y_guess)
     
-    # Initial guess: linear function between boundary conditions
-    y_guess = np.zeros((2, x.size))
-    y_guess[0] = np.linspace(u_left, u_right, n_points)
+    # Extract the solution
+    x_array = bvp_problem.x
+    y_array = bvp_problem.y[0]  # We only want the u(x) values
     
-    # Solve the BVP
-    sol = solve_bvp(ode_system_scipy, boundary_conditions_scipy, x, y_guess)
-    
-    # Refine the solution on a finer grid for plotting
-    x_plot = np.linspace(x_start, x_end, 100)
-    y_plot = sol.sol(x_plot)
-    
-    return x_plot, y_plot
+    return x_array, y_array
 
 
 def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points=100):
@@ -175,39 +186,43 @@ def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points
         dict: Dictionary containing solutions and analysis
     """
     # Solve using both methods
-    x_shooting, y_shooting = solve_bvp_shooting_method(x_span, boundary_conditions, n_points)
-    x_scipy, y_scipy = solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points)
+    x_shooting, u_shooting = solve_bvp_shooting_method(x_span, boundary_conditions, n_points=n_points)
+    x_scipy, u_scipy = solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=n_points)
     
     # Create comparison plot
     plt.figure(figsize=(10, 6))
-    plt.plot(x_shooting, y_shooting[0], 'b-', label='Shooting Method')
-    plt.plot(x_scipy, y_scipy[0], 'r--', label='scipy.solve_bvp')
+    plt.plot(x_shooting, u_shooting, 'b-', label='Shooting Method')
+    plt.plot(x_scipy, u_scipy, 'r--', label='scipy.solve_bvp')
     plt.xlabel('x')
     plt.ylabel('u(x)')
     plt.title('Comparison of Shooting Method and scipy.solve_bvp')
     plt.legend()
     plt.grid(True)
-    plt.savefig('bvp_comparison.png')
-    plt.close()
+    plt.show()
     
-    # Calculate maximum difference
-    # Interpolate scipy solution to shooting method's grid
-    y_scipy_interp = np.interp(x_shooting, x_scipy, y_scipy[0])
-    max_diff = np.max(np.abs(y_shooting[0] - y_scipy_interp))
+    # Calculate differences
+    # Interpolate both solutions to the same points for comparison
+    x_common = np.linspace(x_span[0], x_span[1], n_points)
+    u_shooting_interp = np.interp(x_common, x_shooting, u_shooting)
+    u_scipy_interp = np.interp(x_common, x_scipy, u_scipy)
     
-    results = {
-        'shooting': {
-            'x': x_shooting,
-            'y': y_shooting[0]
-        },
-        'scipy': {
-            'x': x_scipy,
-            'y': y_scipy[0]
-        },
-        'max_difference': max_diff
+    differences = np.abs(u_shooting_interp - u_scipy_interp)
+    max_diff = np.max(differences)
+    avg_diff = np.mean(differences)
+    
+    # Print analysis
+    print(f"Maximum difference between methods: {max_diff:.6f}")
+    print(f"Average difference between methods: {avg_diff:.6f}")
+    
+    # Return analysis results
+    return {
+        'x_shooting': x_shooting,
+        'u_shooting': u_shooting,
+        'x_scipy': x_scipy,
+        'u_scipy': u_scipy,
+        'max_difference': max_diff,
+        'average_difference': avg_diff
     }
-    
-    return results
 
 
 # Test functions for development and debugging
@@ -261,8 +276,7 @@ if __name__ == "__main__":
     try:
         print("\nTesting method comparison...")
         results = compare_methods_and_plot()
-        print(f"Maximum difference between methods: {results['max_difference']:.6e}")
-        print("Method comparison completed successfully! Plot saved as 'bvp_comparison.png'")
+        print("Method comparison completed successfully!")
     except NotImplementedError as e:
         print(f"Method comparison not yet implemented: {e}")
     
