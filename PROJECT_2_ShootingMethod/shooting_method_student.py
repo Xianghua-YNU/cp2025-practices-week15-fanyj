@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+项目2：打靶法与scipy.solve_bvp求解边值问题 - 学生代码模板
+
+本项目要求实现打靶法和scipy.solve_bvp两种方法来求解二阶线性常微分方程边值问题：
+u''(x) = -π(u(x)+1)/4
+边界条件：u(0) = 1, u(1) = 1
+
+学生姓名：[YOUR_NAME]
+学号：[YOUR_STUDENT_ID]
+完成日期：[COMPLETION_DATE]
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint, solve_ivp, solve_bvp
@@ -21,8 +35,13 @@ def ode_system_shooting(t, y):
     
     Returns:
         list: Derivatives [y1', y2']
+    
+    TODO: Implement the ODE system conversion
+    Hint: Return [y[1], -np.pi*(y[0]+1)/4]
     """
-    return [y[1], -np.pi * (y[0] + 1) / 4]
+    # TODO: Implement ODE system for shooting method
+    # [STUDENT_CODE_HERE]
+    raise NotImplementedError("Please implement ode_system_shooting function")
 
 
 def boundary_conditions_scipy(ya, yb):
@@ -38,8 +57,13 @@ def boundary_conditions_scipy(ya, yb):
     
     Returns:
         array: Boundary condition residuals
+    
+    TODO: Implement boundary conditions
+    Hint: Return np.array([ya[0] - 1, yb[0] - 1])
     """
-    return np.array([ya[0] - 1, yb[0] - 1])
+    # TODO: Implement boundary conditions for scipy.solve_bvp
+    # [STUDENT_CODE_HERE]
+    raise NotImplementedError("Please implement boundary_conditions_scipy function")
 
 
 def ode_system_scipy(x, y):
@@ -54,8 +78,13 @@ def ode_system_scipy(x, y):
     
     Returns:
         array: Derivatives as column vector
+    
+    TODO: Implement ODE system for scipy.solve_bvp
+    Hint: Use np.vstack to return column vector
     """
-    return np.vstack([y[1], -np.pi * (y[0] + 1) / 4])
+    # TODO: Implement ODE system for scipy.solve_bvp
+    # [STUDENT_CODE_HERE]
+    raise NotImplementedError("Please implement ode_system_scipy function")
 
 
 def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_iterations=10, tolerance=1e-6):
@@ -77,37 +106,19 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
     
     Returns:
         tuple: (x_array, y_array) solution arrays
+    
+    TODO: Implement shooting method algorithm
+    Hint: Use secant method to adjust initial slope
     """
-    x_start, x_end = x_span
-    u_left, u_right = boundary_conditions
+    # TODO: Validate input parameters
     
-    # Initial guesses for the slope
-    m0 = 0.0
-    m1 = 1.0
+    # TODO: Extract boundary conditions and setup domain
     
-    # Define the objective function to find root of
-    def objective(m):
-        sol = solve_ivp(ode_system_shooting, x_span, [u_left, m], 
-                        dense_output=True, method='RK45', t_eval=np.linspace(x_start, x_end, n_points))
-        return sol.y[0, -1] - u_right  # Difference between computed and desired right BC
+    # TODO: Implement shooting method with secant method for slope adjustment
     
-    # Secant method to find the root
-    f0 = objective(m0)
-    for i in range(max_iterations):
-        f1 = objective(m1)
-        if abs(f1) < tolerance:
-            break
-            
-        # Secant update
-        m2 = m1 - f1 * (m1 - m0) / (f1 - f0)
-        m0, m1 = m1, m2
-        f0, f1 = f1, objective(m1)
-    
-    # Solve the final IVP with optimized slope
-    sol = solve_ivp(ode_system_shooting, x_span, [u_left, m1], 
-                    dense_output=True, method='RK45', t_eval=np.linspace(x_start, x_end, n_points))
-    
-    return sol.t, sol.y
+    # TODO: Return solution arrays
+    # [STUDENT_CODE_HERE]
+    raise NotImplementedError("Please implement solve_bvp_shooting_method function")
 
 
 def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
@@ -121,25 +132,17 @@ def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
     
     Returns:
         tuple: (x_array, y_array) solution arrays
+    
+    TODO: Implement scipy.solve_bvp wrapper
+    Hint: Set up initial guess and call solve_bvp
     """
-    x_start, x_end = x_span
-    u_left, u_right = boundary_conditions
+    # TODO: Setup initial mesh and guess
     
-    # Initial mesh
-    x = np.linspace(x_start, x_end, n_points)
+    # TODO: Call scipy.solve_bvp
     
-    # Initial guess: linear function between boundary conditions
-    y_guess = np.zeros((2, n_points))
-    y_guess[0] = np.linspace(u_left, u_right, n_points)
-    
-    # Solve BVP
-    sol = solve_bvp(ode_system_scipy, boundary_conditions_scipy, x, y_guess, verbose=0)
-    
-    # Refine solution on a finer grid for plotting
-    x_plot = np.linspace(x_start, x_end, 100)
-    y_plot = sol.sol(x_plot)
-    
-    return x_plot, y_plot
+    # TODO: Extract and return solution
+    # [STUDENT_CODE_HERE]
+    raise NotImplementedError("Please implement solve_bvp_scipy_wrapper function")
 
 
 def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points=100):
@@ -153,45 +156,19 @@ def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points
     
     Returns:
         dict: Dictionary containing solutions and analysis
+    
+    TODO: Implement method comparison and visualization
+    Hint: Call both methods, plot results, calculate differences
     """
-    # Solve using both methods
-    x_shooting, y_shooting = solve_bvp_shooting_method(x_span, boundary_conditions, n_points)
-    x_scipy, y_scipy = solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points)
+    # TODO: Solve using both methods
     
-    # Create comparison plot
-    plt.figure(figsize=(12, 6))
+    # TODO: Create comparison plot with English labels
     
-    # Plot solutions
-    plt.plot(x_shooting, y_shooting[0], 'b-', linewidth=2, label='Shooting Method')
-    plt.plot(x_scipy, y_scipy[0], 'r--', linewidth=2, label='scipy.solve_bvp')
+    # TODO: Calculate and display differences
     
-    # Plot boundary conditions
-    plt.plot([x_span[0], x_span[1]], [boundary_conditions[0], boundary_conditions[1]], 'ko', markersize=8, label='Boundary Conditions')
-    
-    plt.xlabel('x', fontsize=12)
-    plt.ylabel('u(x)', fontsize=12)
-    plt.title('Comparison of Shooting Method and scipy.solve_bvp for BVP', fontsize=14)
-    plt.legend(fontsize=10)
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    
-    # Calculate maximum difference
-    y_scipy_interp = np.interp(x_shooting, x_scipy, y_scipy[0])
-    max_diff = np.max(np.abs(y_shooting[0] - y_scipy_interp))
-    
-    results = {
-        'shooting': {
-            'x': x_shooting,
-            'y': y_shooting[0]
-        },
-        'scipy': {
-            'x': x_scipy,
-            'y': y_scipy[0]
-        },
-        'max_difference': max_diff
-    }
-    
-    return results
+    # TODO: Return analysis results
+    # [STUDENT_CODE_HERE]
+    raise NotImplementedError("Please implement compare_methods_and_plot function")
 
 
 # Test functions for development and debugging
@@ -241,13 +218,11 @@ if __name__ == "__main__":
     test_ode_system()
     test_boundary_conditions()
     
-    # Try to run comparison
+    # Try to run comparison (will fail until functions are implemented)
     try:
         print("\nTesting method comparison...")
         results = compare_methods_and_plot()
-        print(f"Maximum difference between methods: {results['max_difference']:.6e}")
         print("Method comparison completed successfully!")
-        plt.show()
     except NotImplementedError as e:
         print(f"Method comparison not yet implemented: {e}")
     
