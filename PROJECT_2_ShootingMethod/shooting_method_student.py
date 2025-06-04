@@ -7,9 +7,9 @@
 u''(x) = -π(u(x)+1)/4
 边界条件：u(0) = 1, u(1) = 1
 
-学生姓名：[范玉洁]
-学号：[20221050183]
-完成日期：[6.4]
+学生姓名：[YOUR_NAME]
+学号：[YOUR_STUDENT_ID]
+完成日期：[COMPLETION_DATE]
 """
 
 import numpy as np
@@ -96,6 +96,12 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
     x_start, x_end = x_span
     u_left, u_right = boundary_conditions
     
+    if x_start >= x_end:
+        raise ValueError("Invalid x_span: x_start must be less than x_end")
+    
+    if not isinstance(boundary_conditions, tuple) or len(boundary_conditions) != 2:
+        raise ValueError("boundary_conditions must be a tuple of two values")
+    
     # Setup domain
     x_array = np.linspace(x_start, x_end, n_points)
     
@@ -104,28 +110,57 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
     
     # Evaluate the function at the first two guesses
     def objective(m):
-        sol = solve_ivp(ode_system_shooting, x_span, [u_left, m], t_eval=x_array, method='RK45')
+        sol = solve_ivp(
+            ode_system_shooting, 
+            x_span, 
+            [u_left, m], 
+            t_eval=x_array, 
+            method='RK45',
+            rtol=1e-6,
+            atol=1e-6
+        )
+        
+        if not sol.success:
+            raise RuntimeError(f"IVP solver failed with message: {sol.message}")
+            
         return sol.y[0][-1] - u_right
     
-    f0 = objective(m0)
+    try:
+        f0 = objective(m0)
+    except Exception as e:
+        raise RuntimeError(f"Initial objective evaluation failed: {str(e)}") from e
     
     for i in range(max_iterations):
-        f1 = objective(m1)
+        try:
+            f1 = objective(m1)
+        except Exception as e:
+            raise RuntimeError(f"Objective evaluation failed at iteration {i}: {str(e)}") from e
         
-        # Secant method update
-        if abs(f1 - f0) < tolerance:
+        # Check if we are close to the solution
+        if abs(f1) < tolerance:
             break
+            
+        # Secant method update
+        if abs(f1 - f0) < 1e-12:
+            raise RuntimeError("Secant method failed: division by zero")
             
         m2 = m1 - f1 * (m1 - m0) / (f1 - f0)
         m0, m1 = m1, m2
         f0 = f1
-        
-        # Check convergence
-        if abs(f1) < tolerance:
-            break
     
-    # Solve with the final slope
-    sol = solve_ivp(ode_system_shooting, x_span, [u_left, m1], t_eval=x_array, method='RK45')
+    # Final solve with the best slope
+    sol = solve_ivp(
+        ode_system_shooting, 
+        x_span, 
+        [u_left, m1], 
+        t_eval=x_array, 
+        method='RK45',
+        rtol=1e-6,
+        atol=1e-6
+    )
+    
+    if not sol.success:
+        raise RuntimeError(f"Final IVP solve failed with message: {sol.message}")
     
     return x_array, sol.y
 
@@ -145,6 +180,9 @@ def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
     x_start, x_end = x_span
     u_left, u_right = boundary_conditions
     
+    if x_start >= x_end:
+        raise ValueError("Invalid x_span: x_start must be less than x_end")
+    
     # Setup initial mesh
     x = np.linspace(x_start, x_end, n_points)
     
@@ -153,13 +191,20 @@ def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
     y_guess[0] = np.linspace(u_left, u_right, n_points)
     
     # Solve BVP
-    sol = solve_bvp(ode_system_scipy, boundary_conditions_scipy, x, y_guess)
+    sol = solve_bvp(
+        ode_system_scipy, 
+        boundary_conditions_scipy, 
+        x, 
+        y_guess,
+        max_nodes=10000,
+        tol=1e-6
+    )
     
-    # Refine solution on a denser mesh for plotting
-    x_plot = np.linspace(x_start, x_end, 100)
-    y_plot = sol.sol(x_plot)
+    if not sol.success:
+        raise RuntimeError(f"BVP solver failed with message: {sol.message}")
     
-    return x_plot, y_plot
+    # Use the solution's own mesh for consistency
+    return sol.x, sol.y
 
 
 def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points=100):
@@ -174,9 +219,13 @@ def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points
     Returns:
         dict: Dictionary containing solutions and analysis
     """
-    # Solve using both methods
-    x_shooting, y_shooting = solve_bvp_shooting_method(x_span, boundary_conditions, n_points)
-    x_scipy, y_scipy = solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points)
+    try:
+        # Solve using both methods
+        x_shooting, y_shooting = solve_bvp_shooting_method(x_span, boundary_conditions, n_points)
+        x_scipy, y_scipy = solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points)
+    except Exception as e:
+        print(f"Error solving BVP: {str(e)}")
+        raise
     
     # Interpolate scipy solution to shooting method's grid for comparison
     y_scipy_interp = np.interp(x_shooting, x_scipy, y_scipy[0])
@@ -185,19 +234,28 @@ def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points
     max_difference = np.max(np.abs(y_shooting[0] - y_scipy_interp))
     
     # Create comparison plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(x_shooting, y_shooting[0], 'b-', label='Shooting Method')
-    plt.plot(x_scipy, y_scipy[0], 'r--', label='scipy.solve_bvp')
+    plt.figure(figsize=(12, 8))
+    
+    # Plot solutions
+    plt.subplot(2, 1, 1)
+    plt.plot(x_shooting, y_shooting[0], 'b-', linewidth=2, label='Shooting Method')
+    plt.plot(x_scipy, y_scipy[0], 'r--', linewidth=2, label='scipy.solve_bvp')
     plt.xlabel('x')
     plt.ylabel('u(x)')
     plt.title('Comparison of Shooting Method and scipy.solve_bvp')
     plt.legend()
     plt.grid(True)
-    plt.annotate(f'Max Difference: {max_difference:.6f}', 
-                 xy=(0.05, 0.05), xycoords='axes fraction')
     
-    # Calculate and display differences
-    print(f"最大差异: {max_difference:.6f}")
+    # Plot difference
+    plt.subplot(2, 1, 2)
+    plt.plot(x_shooting, y_shooting[0] - y_scipy_interp, 'g-', linewidth=2)
+    plt.axhline(y=0, color='k', linestyle='--', alpha=0.5)
+    plt.xlabel('x')
+    plt.ylabel('Difference')
+    plt.title(f'Max Difference: {max_difference:.6f}')
+    plt.grid(True)
+    
+    plt.tight_layout()
     
     return {
         'shooting': (x_shooting, y_shooting),
@@ -245,6 +303,40 @@ def test_boundary_conditions():
         print("Boundary conditions function not yet implemented.")
 
 
+def test_student_error_handling():
+    """
+    Test student's error handling implementation.
+    """
+    print("\nTesting error handling...")
+    
+    # Test invalid x_span
+    try:
+        solve_bvp_shooting_method((2, 1), (1, 1))
+    except ValueError as e:
+        print(f"Caught expected ValueError: {e}")
+    else:
+        print("Failed to catch invalid x_span in shooting method")
+    
+    try:
+        solve_bvp_scipy_wrapper((2, 1), (1, 1))
+    except ValueError as e:
+        print(f"Caught expected ValueError: {e}")
+    else:
+        print("Failed to catch invalid x_span in scipy wrapper")
+    
+    # Test invalid boundary conditions
+    try:
+        solve_bvp_shooting_method((0, 1), [1, 1, 1])
+    except ValueError as e:
+        print(f"Caught expected ValueError: {e}")
+    else:
+        print("Failed to catch invalid boundary conditions in shooting method")
+    
+    # Test other potential errors (example: bad initial guess leading to solver failure)
+    # This test may need adjustment based on actual solver behavior
+    print("Testing solver failure scenarios...")
+
+
 if __name__ == "__main__":
     print("项目2：打靶法与scipy.solve_bvp求解边值问题")
     print("=" * 50)
@@ -252,6 +344,9 @@ if __name__ == "__main__":
     # Run basic tests
     test_ode_system()
     test_boundary_conditions()
+    
+    # Test error handling
+    test_student_error_handling()
     
     # Run comparison
     try:
