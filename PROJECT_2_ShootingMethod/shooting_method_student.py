@@ -115,7 +115,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
 
     # Check if first guess is good enough
     if abs(u_end_1 - u_right) < tolerance:
-        return x, sol1[:, 0]  # Return x and y arrays
+        return x, sol1[:, 0]
 
     # Second guess using linear scaling
     m2 = m1 * u_right / u_end_1 if abs(u_end_1) > 1e-12 else m1 + 1.0
@@ -125,7 +125,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
 
     # Check if second guess is good enough
     if abs(u_end_2 - u_right) < tolerance:
-        return x, sol2[:, 0]  # Return x and y arrays
+        return x, sol2[:, 0]
 
     # Iterative improvement using secant method
     for iteration in range(max_iterations):
@@ -143,7 +143,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
 
         # Check convergence
         if abs(u_end_3 - u_right) < tolerance:
-            return x, sol3[:, 0]  # Return x and y arrays
+            return x, sol3[:, 0]
 
         # Update for next iteration
         m1, m2 = m2, m3
@@ -152,7 +152,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
     # If not converged, return best solution with warning
     print(f"Warning: Shooting method did not converge after {max_iterations} iterations.")
     print(f"Final boundary error: {abs(u_end_3 - u_right):.2e}")
-    return x, sol3[:, 0]  # Return x and y arrays
+    return x, sol3[:, 0]
 
 
 def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
