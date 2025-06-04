@@ -31,16 +31,23 @@ def derivatives(t, state_vector, gm_val):
 
     返回:
         np.ndarray: 一维数组，包含导数 [dx/dt, dy/dt, dvx/dt, dvy/dt]。
-    
-    实现提示:
-    1. 从 state_vector 中解包出 x, y, vx, vy。
-    2. 计算 r_cubed = (x**2 + y**2)**1.5。
-    3. 注意处理 r_cubed 接近零的特殊情况（例如，如果 r 非常小，可以设定一个阈值避免除以零）。
-    4. 计算加速度 ax 和 ay。
-    5. 返回 [vx, vy, ax, ay]。
     """
-    # TODO: 学生在此处实现代码
-    raise NotImplementedError(f"请在 {__file__} 中实现 derivatives 函数")
+    # 解包状态向量
+    x, y, vx, vy = state_vector
+    
+    # 计算距离的立方
+    r_squared = x**2 + y**2
+    r_cubed = r_squared ** 1.5
+    
+    # 避免除以零（当距离极小时）
+    if r_cubed < 1e-10:
+        r_cubed = 1e-10
+    
+    # 计算加速度
+    ax = -gm_val * x / r_cubed
+    ay = -gm_val * y / r_cubed
+    
+    return np.array([vx, vy, ax, ay])
 
 def solve_orbit(initial_conditions, t_span, t_eval, gm_val):
     """
@@ -55,16 +62,20 @@ def solve_orbit(initial_conditions, t_span, t_eval, gm_val):
     返回:
         scipy.integrate.OdeSolution: solve_ivp 返回的解对象。
                                      可以通过 sol.y 访问解的数组，sol.t 访问时间点。
-    
-    实现提示:
-    1. 调用 solve_ivp 函数。
-    2. `fun` 参数应为你的 `derivatives` 函数。
-    3. `args` 参数应为一个元组，包含传递给 `derivatives` 函数的额外参数 (gm_val,)。
-    4. 可以选择合适的数值方法 (method)，如 'RK45' (默认) 或 'DOP853'。
-    5. 设置合理的相对容差 (rtol) 和绝对容差 (atol) 以保证精度，例如 rtol=1e-7, atol=1e-9。
     """
-    # TODO: 学生在此处实现代码
-    raise NotImplementedError(f"请在 {__file__} 中实现 solve_orbit 函数")
+    # 调用 solve_ivp 求解微分方程
+    solution = solve_ivp(
+        fun=derivatives,
+        t_span=t_span,
+        y0=initial_conditions,
+        t_eval=t_eval,
+        args=(gm_val,),
+        method='DOP853',  # 高精度方法
+        rtol=1e-9,        # 相对容差
+        atol=1e-12        # 绝对容差
+    )
+    
+    return solution
 
 def calculate_energy(state_vector, gm_val, m=1.0):
     """
@@ -78,19 +89,33 @@ def calculate_energy(state_vector, gm_val, m=1.0):
 
     返回:
         np.ndarray or float: （比）机械能。
-
-    实现提示:
-    1. 处理 state_vector 可能是一维（单个状态）或二维（多个状态的时间序列）的情况。
-    2. 从 state_vector 中提取 x, y, vx, vy。
-    3. 计算距离 r = np.sqrt(x**2 + y**2)。注意避免 r=0 导致除以零的错误。
-    4. 计算速度的平方 v_squared = vx**2 + vy**2。
-    5. 计算比动能 kinetic_energy_per_m = 0.5 * v_squared。
-    6. 计算比势能 potential_energy_per_m = -gm_val / r (注意处理 r=0 的情况)。
-    7. 比机械能 specific_energy = kinetic_energy_per_m + potential_energy_per_m。
-    8. 如果需要总能量，则乘以质量 m。
     """
-    # TODO: 学生在此处实现代码
-    raise NotImplementedError(f"请在 {__file__} 中实现 calculate_energy 函数")
+    # 处理一维或二维输入
+    if state_vector.ndim == 1:
+        x, y, vx, vy = state_vector
+        # 计算距离
+        r = np.sqrt(x**2 + y**2)
+        # 避免除以零
+        if r < 1e-10:
+            r = 1e-10
+        # 计算速度平方
+        v_squared = vx**2 + vy**2
+        # 计算比能
+        specific_energy = 0.5 * v_squared - gm_val / r
+        # 如果需要总能量，乘以质量
+        return specific_energy * m if m != 1.0 else specific_energy
+    else:
+        x, y, vx, vy = state_vector[:, 0], state_vector[:, 1], state_vector[:, 2], state_vector[:, 3]
+        # 计算距离
+        r = np.sqrt(x**2 + y**2)
+        # 避免除以零
+        r[r < 1e-10] = 1e-10
+        # 计算速度平方
+        v_squared = vx**2 + vy**2
+        # 计算比能
+        specific_energy = 0.5 * v_squared - gm_val / r
+        # 如果需要总能量，乘以质量
+        return specific_energy * m if m != 1.0 else specific_energy
 
 def calculate_angular_momentum(state_vector, m=1.0):
     """
@@ -103,62 +128,129 @@ def calculate_angular_momentum(state_vector, m=1.0):
 
     返回:
         np.ndarray or float: （比）角动量。
-
-    实现提示:
-    1. 处理 state_vector 可能是一维或二维的情况。
-    2. 从 state_vector 中提取 x, y, vx, vy。
-    3. 计算比角动量 specific_Lz = x * vy - y * vx。
-    4. 如果需要总角动量，则乘以质量 m。
     """
-    # TODO: 学生在此处实现代码
-    raise NotImplementedError(f"请在 {__file__} 中实现 calculate_angular_momentum 函数")
-
+    # 处理一维或二维输入
+    if state_vector.ndim == 1:
+        x, y, vx, vy = state_vector
+        # 计算比角动量
+        specific_Lz = x * vy - y * vx
+        # 如果需要总角动量，乘以质量
+        return specific_Lz * m if m != 1.0 else specific_Lz
+    else:
+        x, y, vx, vy = state_vector[:, 0], state_vector[:, 1], state_vector[:, 2], state_vector[:, 3]
+        # 计算比角动量
+        specific_Lz = x * vy - y * vx
+        # 如果需要总角动量，乘以质量
+        return specific_Lz * m if m != 1.0 else specific_Lz
 
 if __name__ == "__main__":
     # --- 学生可以在此区域编写测试代码或进行实验 ---
     print("平方反比引力场中的运动 - 学生模板")
 
-    # 任务1：实现函数并通过基础测试 (此处不设测试，依赖 tests 文件)
+    # 测试不同能量下的轨道
+    GM_val = 1.0
+    
+    # 设置三种能量的初始条件
+    # 1. 椭圆轨道 (E < 0)
+    ic_ellipse = [1.0, 0.0, 0.0, 0.8]  # 初始位置(1,0)，初始速度(0,0.8)
+    # 2. 抛物线轨道 (E = 0)
+    ic_parabola = [1.0, 0.0, 0.0, np.sqrt(2*GM_val/1.0)]  # 初始速度恰好为逃逸速度
+    # 3. 双曲线轨道 (E > 0)
+    ic_hyperbola = [1.0, 0.0, 0.0, 1.5]  # 初始速度大于逃逸速度
 
-    # 任务2：不同总能量下的轨道绘制
-    # 示例：设置椭圆轨道初始条件 (学生需要根据物理意义自行调整或计算得到)
-    # GM_val_demo = 1.0
-    # ic_ellipse_demo = [1.0, 0.0, 0.0, 0.8]
-    # t_start_demo = 0
-    # t_end_demo = 20
-    # t_eval_demo = np.linspace(t_start_demo, t_end_demo, 500)
+    # 时间设置
+    t_start = 0
+    t_end_ellipse = 20
+    t_end_parabola = 15
+    t_end_hyperbola = 10
+    t_eval_ellipse = np.linspace(t_start, t_end_ellipse, 500)
+    t_eval_parabola = np.linspace(t_start, t_end_parabola, 300)
+    t_eval_hyperbola = np.linspace(t_start, t_end_hyperbola, 200)
 
-    # try:
-    #     sol_ellipse = solve_orbit(ic_ellipse_demo, (t_start_demo, t_end_demo), t_eval_demo, gm_val=GM_val_demo)
-    #     x_ellipse, y_ellipse = sol_ellipse.y[0], sol_ellipse.y[1]
+    try:
+        # 求解三种轨道
+        sol_ellipse = solve_orbit(ic_ellipse, (t_start, t_end_ellipse), t_eval_ellipse, gm_val=GM_val)
+        sol_parabola = solve_orbit(ic_parabola, (t_start, t_end_parabola), t_eval_parabola, gm_val=GM_val)
+        sol_hyperbola = solve_orbit(ic_hyperbola, (t_start, t_end_hyperbola), t_eval_hyperbola, gm_val=GM_val)
         
-    #     # 计算能量和角动量 (假设学生已实现)
-    #     # energy = calculate_energy(sol_ellipse.y.T, GM_val_demo)
-    #     # angular_momentum = calculate_angular_momentum(sol_ellipse.y.T)
-    #     # print(f"Ellipse Demo: Initial Energy approx {energy[0]:.3f}")
+        # 计算能量和角动量
+        ellipse_energy = calculate_energy(sol_ellipse.y.T, GM_val)
+        parabola_energy = calculate_energy(sol_parabola.y.T, GM_val)
+        hyperbola_energy = calculate_energy(sol_hyperbola.y.T, GM_val)
+        
+        ellipse_angular_momentum = calculate_angular_momentum(sol_ellipse.y.T)
+        parabola_angular_momentum = calculate_angular_momentum(sol_parabola.y.T)
+        hyperbola_angular_momentum = calculate_angular_momentum(sol_hyperbola.y.T)
+        
+        print(f"椭圆轨道: 初始能量 ≈ {ellipse_energy[0]:.6f}, 角动量 ≈ {ellipse_angular_momentum[0]:.6f}")
+        print(f"抛物线轨道: 初始能量 ≈ {parabola_energy[0]:.6f}, 角动量 ≈ {parabola_angular_momentum[0]:.6f}")
+        print(f"双曲线轨道: 初始能量 ≈ {hyperbola_energy[0]:.6f}, 角动量 ≈ {hyperbola_angular_momentum[0]:.6f}")
 
-    #     plt.figure(figsize=(8, 6))
-    #     plt.plot(x_ellipse, y_ellipse, label='椭圆轨道 (示例)')
-    #     plt.plot(0, 0, 'ko', markersize=8, label='中心天体')
-    #     plt.title('轨道运动示例')
-    #     plt.xlabel('x 坐标')
-    #     plt.ylabel('y 坐标')
-    #     plt.legend()
-    #     plt.grid(True)
-    #     plt.axis('equal')
-    #     plt.show()
-    # except NotImplementedError:
-    #     print("请先实现 solve_orbit, calculate_energy, calculate_angular_momentum 函数。")
-    # except Exception as e:
-    #     print(f"运行示例时发生错误: {e}")
+        # 绘制三种轨道
+        plt.figure(figsize=(15, 5))
+        
+        plt.subplot(1, 3, 1)
+        plt.plot(sol_ellipse.y[0], sol_ellipse.y[1], 'b-', label='椭圆轨道')
+        plt.plot(0, 0, 'ko', markersize=8, label='中心天体')
+        plt.title(f'椭圆轨道 (E < 0)\nE ≈ {ellipse_energy[0]:.6f}')
+        plt.xlabel('x 坐标')
+        plt.ylabel('y 坐标')
+        plt.legend()
+        plt.grid(True)
+        plt.axis('equal')
+        
+        plt.subplot(1, 3, 2)
+        plt.plot(sol_parabola.y[0], sol_parabola.y[1], 'g-', label='抛物线轨道')
+        plt.plot(0, 0, 'ko', markersize=8, label='中心天体')
+        plt.title(f'抛物线轨道 (E = 0)\nE ≈ {parabola_energy[0]:.6f}')
+        plt.xlabel('x 坐标')
+        plt.grid(True)
+        plt.axis('equal')
+        
+        plt.subplot(1, 3, 3)
+        plt.plot(sol_hyperbola.y[0], sol_hyperbola.y[1], 'r-', label='双曲线轨道')
+        plt.plot(0, 0, 'ko', markersize=8, label='中心天体')
+        plt.title(f'双曲线轨道 (E > 0)\nE ≈ {hyperbola_energy[0]:.6f}')
+        plt.xlabel('x 坐标')
+        plt.grid(True)
+        plt.axis('equal')
+        
+        plt.tight_layout()
+        plt.show()
 
-    # 学生需要根据“项目说明.md”完成以下任务：
-    # 1. 实现 `derivatives`, `solve_orbit`, `calculate_energy`, `calculate_angular_momentum` 函数。
-    # 2. 针对 E > 0, E = 0, E < 0 三种情况设置初始条件，求解并绘制轨道。
-    # 3. 针对 E < 0 且固定时，改变角动量，求解并绘制轨道。
-    # 4. (可选) 进行坐标转换和对称性分析。
+        # 测试固定能量下不同角动量的椭圆轨道
+        plt.figure(figsize=(10, 8))
+        
+        # 固定能量，改变角动量
+        energies = []
+        angular_momenta = []
+        labels = []
+        
+        for v_init in [0.7, 0.8, 0.9, 1.0]:
+            ic = [1.0, 0.0, 0.0, v_init]
+            sol = solve_orbit(ic, (t_start, t_end_ellipse), t_eval_ellipse, gm_val=GM_val)
+            
+            # 计算能量和角动量
+            energy = calculate_energy(sol.y.T, GM_val)
+            angular_momentum = calculate_angular_momentum(sol.y.T)
+            
+            energies.append(energy[0])
+            angular_momenta.append(angular_momentum[0])
+            labels.append(f'v₀ = {v_init}, L ≈ {angular_momentum[0]:.4f}')
+            
+            plt.plot(sol.y[0], sol.y[1], label=labels[-1])
+        
+        plt.plot(0, 0, 'ko', markersize=8, label='中心天体')
+        plt.title(f'固定能量 (E ≈ {energies[0]:.4f}) 下不同角动量的椭圆轨道')
+        plt.xlabel('x 坐标')
+        plt.ylabel('y 坐标')
+        plt.legend()
+        plt.grid(True)
+        plt.axis('equal')
+        plt.show()
+
+    except Exception as e:
+        print(f"运行示例时发生错误: {e}")
 
     print("\n请参照 '项目说明.md' 完成各项任务。")
     print("使用 'tests/test_inverse_square_law_motion.py' 文件来测试你的代码实现。")
-
-    pass # 学生代码的主要部分应在函数内实现
