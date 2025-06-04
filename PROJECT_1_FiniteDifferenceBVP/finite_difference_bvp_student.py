@@ -124,7 +124,7 @@ def boundary_conditions_for_solve_bvp(ya, yb):
 
 def solve_bvp_scipy(n_initial_points=11):
     """
-    使用 scipy.integrate.solve_bvp 求解BVP。
+    使用 scipy.integrate.solve_bvp 求解BVP，优化初始猜测与求解参数提升精度。
     
     Args:
         n_initial_points (int): 初始网格点数
@@ -134,22 +134,30 @@ def solve_bvp_scipy(n_initial_points=11):
             x_solution (np.ndarray): 解的 x 坐标数组
             y_solution (np.ndarray): 解的 y 坐标数组
     """
-    # 创建初始网格
+    # 创建初始网格，更密集的初始网格可能有助于提升精度
     x_initial = np.linspace(0, 5, n_initial_points)
     
-    # 创建初始猜测 (线性插值)
+    # 改进初始猜测：不再简单线性猜测，基于问题特性构造更合理初始值
+    # 这里假设初始猜测 y 先按线性，y' 初始设为一个小常数（可根据问题调整）
     y_initial = np.zeros((2, n_initial_points))
-    y_initial[0] = 3 * x_initial / 5  # 线性猜测 y(0)=0, y(5)=3
+    y_initial[0] = 3 * x_initial / 5  # 基础线性猜测 y(0)=0, y(5)=3 
+    y_initial[1] = 0.1  # 给 y' 一个初始小值，可根据实际情况微调
     
-    # 求解BVP
-    solution = solve_bvp(ode_system_for_solve_bvp, boundary_conditions_for_solve_bvp, 
-                         x_initial, y_initial, verbose=2)
+    # 调用 solve_bvp，设置更严格的求解公差，提升精度
+    solution = solve_bvp(
+        ode_system_for_solve_bvp, 
+        boundary_conditions_for_solve_bvp, 
+        x_initial, 
+        y_initial, 
+        rtol=1e-5,  # 相对公差，调小提升精度
+        atol=1e-6   # 绝对公差，调小提升精度
+    )
     
     # 检查求解是否成功
     if not solution.success:
         raise RuntimeError(f"BVP求解失败: {solution.message}")
     
-    # 提取解
+    # 提取解，使用更密集的网格输出结果，方便对比
     x_solution = np.linspace(0, 5, 500)
     y_solution = solution.sol(x_solution)[0]
     
