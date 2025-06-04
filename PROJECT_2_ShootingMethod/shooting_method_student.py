@@ -293,7 +293,6 @@ def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points
         print(f"Error in method comparison: {str(e)}")
         raise
 
-
 # Test functions for development and debugging
 def test_ode_system():
     """
@@ -321,7 +320,6 @@ def test_ode_system():
 
     print("ODE system tests passed!")
 
-
 def test_boundary_conditions():
     """
     Test the boundary conditions implementation.
@@ -338,7 +336,6 @@ def test_boundary_conditions():
     assert np.allclose(bc_residual, expected), "Boundary conditions test failed"
 
     print("Boundary conditions test passed!")
-
 
 def test_shooting_method():
     """
@@ -358,7 +355,6 @@ def test_shooting_method():
     print(f"Shooting method: u(0) = {y[0]:.6f}, u(1) = {y[-1]:.6f}")
     print("Shooting method test passed!")
 
-
 def test_scipy_method():
     """
     Test the scipy.solve_bvp wrapper.
@@ -376,7 +372,6 @@ def test_scipy_method():
 
     print(f"scipy.solve_bvp: u(0) = {y[0]:.6f}, u(1) = {y[-1]:.6f}")
     print("scipy.solve_bvp wrapper test passed!")
-
 
 if __name__ == "__main__":
     print("项目2：打靶法与scipy.solve_bvp求解边值问题
