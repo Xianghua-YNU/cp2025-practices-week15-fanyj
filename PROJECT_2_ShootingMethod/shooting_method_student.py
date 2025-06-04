@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-项目2：打靶法与scipy.solve_bvp求解边值问题 - 学生代码（参考参考答案修正后）
+项目2：打靶法与scipy.solve_bvp求解边值问题 - 学生代码
 
 本项目实现打靶法和scipy.solve_bvp两种方法来求解二阶线性常微分方程边值问题：
 u''(x) = -π(u(x)+1)/4
 边界条件：u(0) = 1, u(1) = 1
 
-学生姓名：[范玉洁]
-学号：[20221050183]
-完成日期：[6.4]
+学生姓名：[YOUR_NAME]
+学号：[YOUR_STUDENT_ID]
+完成日期：[COMPLETION_DATE]
 """
 
 import numpy as np
@@ -115,7 +115,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
 
     # Check if first guess is good enough
     if abs(u_end_1 - u_right) < tolerance:
-        return x, sol1[:, 0]
+        return x, sol1[:, 0]  # Return x and y arrays
 
     # Second guess using linear scaling
     m2 = m1 * u_right / u_end_1 if abs(u_end_1) > 1e-12 else m1 + 1.0
@@ -125,7 +125,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
 
     # Check if second guess is good enough
     if abs(u_end_2 - u_right) < tolerance:
-        return x, sol2[:, 0]
+        return x, sol2[:, 0]  # Return x and y arrays
 
     # Iterative improvement using secant method
     for iteration in range(max_iterations):
@@ -143,7 +143,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
 
         # Check convergence
         if abs(u_end_3 - u_right) < tolerance:
-            return x, sol3[:, 0]
+            return x, sol3[:, 0]  # Return x and y arrays
 
         # Update for next iteration
         m1, m2 = m2, m3
@@ -152,7 +152,7 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
     # If not converged, return best solution with warning
     print(f"Warning: Shooting method did not converge after {max_iterations} iterations.")
     print(f"Final boundary error: {abs(u_end_3 - u_right):.2e}")
-    return x, sol3[:, 0]
+    return x, sol3[:, 0]  # Return x and y arrays
 
 
 def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
