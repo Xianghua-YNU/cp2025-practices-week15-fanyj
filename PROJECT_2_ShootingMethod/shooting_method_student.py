@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-项目2：打靶法与scipy.solve_bvp求解边值问题 - 学生代码模板
-
-本项目要求实现打靶法和scipy.solve_bvp两种方法来求解二阶线性常微分方程边值问题：
-u''(x) = -π(u(x)+1)/4
-边界条件：u(0) = 1, u(1) = 1
-
-学生姓名：[YOUR_NAME]
-学号：[YOUR_STUDENT_ID]
-完成日期：[COMPLETION_DATE]
-"""
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.integrate import odeint, solve_ivp, solve_bvp
-from scipy.optimize import fsolve
-import warnings
-warnings.filterwarnings('ignore')
-
-
 def ode_system_shooting(t, y):
     """
     Define the ODE system for shooting method.
@@ -69,7 +47,7 @@ def ode_system_scipy(x, y):
     Returns:
         array: Derivatives as column vector
     """
-    return np.vstack((y[1], -np.pi*(y[0]+1)/4))
+    return np.vstack([y[1], -np.pi*(y[0]+1)/4])
 
 
 def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_iterations=10, tolerance=1e-6):
@@ -92,42 +70,38 @@ def solve_bvp_shooting_method(x_span, boundary_conditions, n_points=100, max_ite
     Returns:
         tuple: (x_array, y_array) solution arrays
     """
-    # Validate input parameters
     x_start, x_end = x_span
     u_left, u_right = boundary_conditions
     
-    # Setup domain
-    x_array = np.linspace(x_start, x_end, n_points)
-    
     # Initial guesses for the slope
-    m0, m1 = 0.0, 1.0
+    m0 = 0.0
+    m1 = 1.0
     
-    # Evaluate the function at the first two guesses
-    def objective(m):
-        sol = solve_ivp(ode_system_shooting, x_span, [u_left, m], t_eval=x_array, method='RK45')
-        return sol.y[0][-1] - u_right
+    # Evaluate the function at the right endpoint for the two initial slopes
+    def f(m):
+        sol = solve_ivp(ode_system_shooting, x_span, [u_left, m], dense_output=True)
+        x = np.linspace(x_start, x_end, n_points)
+        y = sol.sol(x)
+        return y[0][-1] - u_right  # Difference between computed and desired right BC
     
-    f0 = objective(m0)
+    f0 = f(m0)
     
-    for i in range(max_iterations):
-        f1 = objective(m1)
+    for _ in range(max_iterations):
+        f1 = f(m1)
+        if abs(f1) < tolerance:
+            break
         
         # Secant method update
-        if abs(f1 - f0) < tolerance:
-            break
-            
         m2 = m1 - f1 * (m1 - m0) / (f1 - f0)
         m0, m1 = m1, m2
         f0 = f1
-        
-        # Check convergence
-        if abs(f1) < tolerance:
-            break
     
     # Solve with the final slope
-    sol = solve_ivp(ode_system_shooting, x_span, [u_left, m1], t_eval=x_array, method='RK45')
+    sol = solve_ivp(ode_system_shooting, x_span, [u_left, m1], dense_output=True)
+    x = np.linspace(x_start, x_end, n_points)
+    y = sol.sol(x)
     
-    return x_array, sol.y
+    return x, y
 
 
 def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
@@ -145,17 +119,17 @@ def solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points=50):
     x_start, x_end = x_span
     u_left, u_right = boundary_conditions
     
-    # Setup initial mesh
+    # Initial mesh
     x = np.linspace(x_start, x_end, n_points)
     
     # Initial guess: linear function between boundary conditions
-    y_guess = np.zeros((2, x.size))
+    y_guess = np.zeros((2, n_points))
     y_guess[0] = np.linspace(u_left, u_right, n_points)
     
     # Solve BVP
     sol = solve_bvp(ode_system_scipy, boundary_conditions_scipy, x, y_guess)
     
-    # Refine solution on a denser mesh for plotting
+    # Refine solution on a finer grid for plotting
     x_plot = np.linspace(x_start, x_end, 100)
     y_plot = sol.sol(x_plot)
     
@@ -178,88 +152,38 @@ def compare_methods_and_plot(x_span=(0, 1), boundary_conditions=(1, 1), n_points
     x_shooting, y_shooting = solve_bvp_shooting_method(x_span, boundary_conditions, n_points)
     x_scipy, y_scipy = solve_bvp_scipy_wrapper(x_span, boundary_conditions, n_points)
     
-    # Interpolate scipy solution to shooting method's grid for comparison
-    y_scipy_interp = np.interp(x_shooting, x_scipy, y_scipy[0])
-    
-    # Calculate maximum difference
-    max_difference = np.max(np.abs(y_shooting[0] - y_scipy_interp))
-    
     # Create comparison plot
     plt.figure(figsize=(10, 6))
+    
+    # Plot solutions
     plt.plot(x_shooting, y_shooting[0], 'b-', label='Shooting Method')
     plt.plot(x_scipy, y_scipy[0], 'r--', label='scipy.solve_bvp')
+    
+    # Plot boundary conditions
+    plt.plot([x_span[0], x_span[1]], [boundary_conditions[0], boundary_conditions[1]], 'ko', label='Boundary Conditions')
+    
     plt.xlabel('x')
     plt.ylabel('u(x)')
-    plt.title('Comparison of Shooting Method and scipy.solve_bvp')
+    plt.title('Comparison of Shooting Method and scipy.solve_bvp for BVP')
     plt.legend()
     plt.grid(True)
-    plt.annotate(f'Max Difference: {max_difference:.6f}', 
-                 xy=(0.05, 0.05), xycoords='axes fraction')
+    plt.tight_layout()
     
-    # Calculate and display differences
-    print(f"最大差异: {max_difference:.6f}")
+    # Calculate maximum difference
+    # Interpolate scipy solution to shooting method's grid for comparison
+    y_scipy_interp = np.interp(x_shooting, x_scipy, y_scipy[0])
+    max_diff = np.max(np.abs(y_shooting[0] - y_scipy_interp))
     
-    return {
-        'shooting': (x_shooting, y_shooting),
-        'scipy': (x_scipy, y_scipy),
-        'max_difference': max_difference
+    results = {
+        'shooting': {
+            'x': x_shooting,
+            'y': y_shooting[0]
+        },
+        'scipy': {
+            'x': x_scipy,
+            'y': y_scipy[0]
+        },
+        'max_difference': max_diff
     }
-
-
-# Test functions for development and debugging
-def test_ode_system():
-    """
-    Test the ODE system implementation.
-    """
-    print("Testing ODE system...")
-    try:
-        # Test point
-        t_test = 0.5
-        y_test = np.array([1.0, 0.5])
-        
-        # Test shooting method ODE system
-        dydt = ode_system_shooting(t_test, y_test)
-        print(f"ODE system (shooting): dydt = {dydt}")
-        
-        # Test scipy ODE system
-        dydt_scipy = ode_system_scipy(t_test, y_test)
-        print(f"ODE system (scipy): dydt = {dydt_scipy}")
-        
-    except NotImplementedError:
-        print("ODE system functions not yet implemented.")
-
-
-def test_boundary_conditions():
-    """
-    Test the boundary conditions implementation.
-    """
-    print("Testing boundary conditions...")
-    try:
-        ya = np.array([1.0, 0.5])  # Left boundary
-        yb = np.array([1.0, -0.3])  # Right boundary
-        
-        bc_residual = boundary_conditions_scipy(ya, yb)
-        print(f"Boundary condition residuals: {bc_residual}")
-        
-    except NotImplementedError:
-        print("Boundary conditions function not yet implemented.")
-
-
-if __name__ == "__main__":
-    print("项目2：打靶法与scipy.solve_bvp求解边值问题")
-    print("=" * 50)
     
-    # Run basic tests
-    test_ode_system()
-    test_boundary_conditions()
-    
-    # Run comparison
-    try:
-        print("\nTesting method comparison...")
-        results = compare_methods_and_plot()
-        plt.show()  # Display the comparison plot
-        print("Method comparison completed successfully!")
-    except Exception as e:
-        print(f"Error in method comparison: {e}")
-    
-    print("\n所有函数已实现并测试完成。")
+    return results
