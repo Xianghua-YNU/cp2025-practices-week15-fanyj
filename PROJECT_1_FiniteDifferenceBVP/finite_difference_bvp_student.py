@@ -38,22 +38,48 @@ def solve_bvp_finite_difference(n):
         tuple: (x_grid, y_solution)
             x_grid (np.ndarray): 包含边界点的完整网格
             y_solution (np.ndarray): 对应的解值
-    
-    TODO: 实现有限差分法
-    Hints:
-    1. 创建网格点 x_i = i*h, i=0,1,...,n+1, 其中 h = 5/(n+1)
-    2. 对于内部点 i=1,2,...,n，使用中心差分近似：
-       y''_i ≈ (y_{i+1} - 2*y_i + y_{i-1}) / h^2
-       y'_i ≈ (y_{i+1} - y_{i-1}) / (2*h)
-    3. 构建线性系统 A*y = b，其中 y = [y_1, y_2, ..., y_n]
-    4. 边界条件：y_0 = 0, y_{n+1} = 3
-    5. 对于每个内部点，重新整理方程得到系数
-    6. 处理边界条件对右端向量的影响
     """
-    # TODO: 在此实现有限差分法 (预计30-40行代码)
-    # [STUDENT_CODE_HERE]
+    # 创建网格点
+    h = 5 / (n + 1)
+    x_grid = np.linspace(0, 5, n + 2)
     
-    raise NotImplementedError("请在此处实现有限差分法")
+    # 初始化系数矩阵 A 和右端向量 b
+    A = np.zeros((n, n))
+    b = np.zeros(n)
+    
+    # 构建线性系统
+    for i in range(n):
+        x = x_grid[i + 1]  # 内部点坐标
+        
+        # 中心差分近似 y'' 和 y'
+        a = 1 / (h ** 2) - np.sin(x) / (2 * h)
+        b_coef = -2 / (h ** 2) + np.exp(x)
+        c = 1 / (h ** 2) + np.sin(x) / (2 * h)
+        
+        # 填充系数矩阵
+        if i > 0:
+            A[i, i - 1] = a
+        A[i, i] = b_coef
+        if i < n - 1:
+            A[i, i + 1] = c
+        
+        # 填充右端向量
+        b[i] = x ** 2
+    
+    # 处理边界条件对右端向量的影响
+    b[0] -= a * 0  # y(0) = 0
+    b[-1] -= c * 3  # y(5) = 3
+    
+    # 求解线性系统
+    y_inner = solve(A, b)
+    
+    # 合并边界条件和内部解
+    y_solution = np.zeros(n + 2)
+    y_solution[0] = 0
+    y_solution[1:-1] = y_inner
+    y_solution[-1] = 3
+    
+    return x_grid, y_solution
 
 
 # ============================================================================
@@ -78,17 +104,14 @@ def ode_system_for_solve_bvp(x, y):
     
     Returns:
         array: 导数 [dy/dx, dy'/dx]
-    
-    TODO: 实现ODE系统的右端项
-    Hints:
-    1. 提取 y[0] 和 y[1] 分别表示 y(x) 和 y'(x)
-    2. 根据一阶系统方程计算导数
-    3. 使用 np.vstack 组合返回结果
     """
-    # TODO: 在此实现一阶ODE系统 (预计5-8行代码)
-    # [STUDENT_CODE_HERE]
+    y0 = y[0]  # y(x)
+    y1 = y[1]  # y'(x)
     
-    raise NotImplementedError("请在此处实现ODE系统")
+    dy0_dx = y1
+    dy1_dx = -np.sin(x) * y1 - np.exp(x) * y0 + x**2
+    
+    return np.vstack([dy0_dx, dy1_dx])
 
 
 def boundary_conditions_for_solve_bvp(ya, yb):
@@ -101,17 +124,8 @@ def boundary_conditions_for_solve_bvp(ya, yb):
     
     Returns:
         array: 边界条件残差 [y(0) - 0, y(5) - 3]
-    
-    TODO: 实现边界条件
-    Hints:
-    1. ya[0] 是左边界的 y 值，应该等于 0
-    2. yb[0] 是右边界的 y 值，应该等于 3
-    3. 返回残差数组
     """
-    # TODO: 在此实现边界条件 (预计1-2行代码)
-    # [STUDENT_CODE_HERE]
-    
-    raise NotImplementedError("请在此处实现边界条件")
+    return np.array([ya[0] - 0, yb[0] - 3])
 
 
 def solve_bvp_scipy(n_initial_points=11):
@@ -125,18 +139,26 @@ def solve_bvp_scipy(n_initial_points=11):
         tuple: (x_solution, y_solution)
             x_solution (np.ndarray): 解的 x 坐标数组
             y_solution (np.ndarray): 解的 y 坐标数组
-    
-    TODO: 实现 solve_bvp 方法
-    Hints:
-    1. 创建初始网格 x_initial
-    2. 创建初始猜测 y_initial (2×n 数组)
-    3. 调用 solve_bvp 函数
-    4. 检查求解是否成功并提取解
     """
-    # TODO: 在此实现 solve_bvp 方法 (预计10-15行代码)
-    # [STUDENT_CODE_HERE]
+    # 创建初始网格
+    x_initial = np.linspace(0, 5, n_initial_points)
     
-    raise NotImplementedError("请在此处实现 solve_bvp 方法")
+    # 创建初始猜测
+    y_initial = np.zeros((2, n_initial_points))
+    y_initial[0] = np.linspace(0, 3, n_initial_points)  # y(x) 的初始猜测
+    y_initial[1] = np.ones(n_initial_points) * 0.6      # y'(x) 的初始猜测
+    
+    # 调用 solve_bvp
+    solution = solve_bvp(ode_system_for_solve_bvp, boundary_conditions_for_solve_bvp, 
+                         x_initial, y_initial)
+    
+    # 提取解
+    if solution.success:
+        x_solution = solution.x
+        y_solution = solution.y[0]  # 只取 y(x)，不要 y'(x)
+        return x_solution, y_solution
+    else:
+        raise RuntimeError("solve_bvp failed to converge")
 
 
 # ============================================================================
@@ -224,4 +246,4 @@ if __name__ == "__main__":
     print("\n=" * 60)
     print("实验完成！")
     print("请在实验报告中分析两种方法的精度、效率和适用性。")
-    print("=" * 60)
+    print("=" * 60)    
